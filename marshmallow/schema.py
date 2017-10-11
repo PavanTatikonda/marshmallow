@@ -554,12 +554,13 @@ class BaseSchema(base.SchemaABC):
         """
         result = None
         errors = {}
+        marshalling_method.reset_errors()
         if jitted_method:
             try:
                 result = jitted_method(obj, many=many)
-            except (ValidationError, KeyError, AttributeError, ValueError):
+            except (ValidationError, KeyError, AttributeError, ValueError, TypeError):
                 # Fall through to slow path
-                    pass
+                pass
         if not result:
             try:
                 result = marshalling_method(
