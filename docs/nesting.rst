@@ -1,6 +1,3 @@
-
-.. _nesting:
-
 Nesting Schemas
 ===============
 
@@ -11,7 +8,7 @@ Schemas can be nested to represent relationships between objects (e.g. foreign k
 
     import datetime as dt
 
-    class User(object):
+    class User:
         def __init__(self, name, email):
             self.name = name
             self.email = email
@@ -19,7 +16,7 @@ Schemas can be nested to represent relationships between objects (e.g. foreign k
             self.friends = []
             self.employer = None
 
-    class Blog(object):
+    class Blog:
         def __init__(self, title, author):
             self.title = title
             self.author = author  # A User object
@@ -46,10 +43,10 @@ The serialized blog will have the nested user representation.
 
     user = User(name="Monty", email="monty@python.org")
     blog = Blog(title="Something Completely Different", author=user)
-    result, errors = BlogSchema().dump(blog)
+    result = BlogSchema().dump(blog)
     pprint(result)
     # {'title': u'Something Completely Different',
-    # {'author': {'name': u'Monty',
+    #  'author': {'name': u'Monty',
     #             'email': u'monty@python.org',
     #             'created_at': '2014-08-17T14:58:57.600623+00:00'}}
 
@@ -75,7 +72,7 @@ You can explicitly specify which attributes of the nested objects you want to se
         author = fields.Nested(UserSchema, only=["email"])
 
     schema = BlogSchema2()
-    result, errors = schema.dump(blog)
+    result = schema.dump(blog)
     pprint(result)
     # {
     #     'title': u'Something Completely Different',
@@ -91,7 +88,7 @@ You can represent the attributes of deeply nested objects using dot delimiters.
         blog = fields.Nested(BlogSchema2)
 
     schema = SiteSchema(only=['blog.author.email'])
-    result, errors = schema.dump(site)
+    result = schema.dump(site)
     pprint(result)
     # {
     #     'blog': {
@@ -99,28 +96,67 @@ You can represent the attributes of deeply nested objects using dot delimiters.
     #     }
     # }
 
-.. note::
+You can replace nested data with a single value (or flat list of values if ``many=True``) using the :class:`Pluck <marshmallow.fields.Pluck>` field.
 
-    If you pass in a string field name to ``only``, only a single value (or flat list of values if ``many=True``) will be returned.
+.. code-block:: python
+    :emphasize-lines: 4, 11, 18
 
-    .. code-block:: python
-        :emphasize-lines: 4, 11
-
-        class UserSchema(Schema):
-            name = fields.String()
-            email = fields.Email()
-            friends = fields.Nested('self', only='name', many=True)
-        # ... create ``user`` ...
-        result, errors = UserSchema().dump(user)
-        pprint(result)
-        # {
-        #     "name": "Steve",
-        #     "email": "steve@example.com",
-        #     "friends": ["Mike", "Joe"]
-        # }
+    class UserSchema(Schema):
+        name = fields.String()
+        email = fields.Email()
+        friends = fields.Pluck('self', 'name', many=True)
+    # ... create ``user`` ...
+    serialized_data = UserSchema().dump(user)
+    pprint(serialized_data)
+    # {
+    #     "name": "Steve",
+    #     "email": "steve@example.com",
+    #     "friends": ["Mike", "Joe"]
+    # }
+    deserialized_data = UserSchema().load(result)
+    pprint(deserialized_data)
+    # {
+    #     "name": "Steve",
+    #     "email": "steve@example.com",
+    #     "friends": [{"name": "Mike"}, {"name": "Joe"}]
+    # }
 
 
 You can also exclude fields by passing in an ``exclude`` list. This argument also allows representing the attributes of deeply nested objects using dot delimiters.
+
+.. _partial-loading:
+
+Partial Loading
+---------------
+
+Nested schemas also inherit the ``partial`` parameter of the parent ``load`` call.
+
+.. code-block:: python
+
+    class UserSchemaStrict(Schema):
+        name = fields.String(required=True)
+        email = fields.Email()
+        created_at = fields.DateTime(required=True)
+
+    class BlogSchemaStrict(Schema):
+        title = fields.String(required=True)
+        author = fields.Nested(UserSchemaStrict, required=True)
+
+    schema = BlogSchemaStrict()
+    blog = {'title': 'Something Completely Different', 'author': {}}
+    result = schema.load(blog, partial=True)
+    pprint(result)
+    # {'author': {}, 'title': 'Something Completely Different'}
+
+You can specify a subset of the fields to allow partial loading using dot delimiters.
+
+.. code-block:: python
+
+    author = {'name': 'Monty'}
+    blog = {'title': 'Something Completely Different', 'author': author}
+    result = schema.load(blog, partial=('title', 'author.created_at'))
+    pprint(result)
+    # {'author': {'name': 'Monty'}, 'title': 'Something Completely Different'}
 
 .. _two-way-nesting:
 
@@ -154,7 +190,7 @@ For example, a representation of an ``Author`` model might include the books tha
 
     author = Author(name='William Faulkner')
     book = Book(title='As I Lay Dying', author=author)
-    book_result, errors = BookSchema().dump(book)
+    book_result = BookSchema().dump(book)
     pprint(book_result, indent=2)
     # {
     #   "id": 124,
@@ -165,7 +201,7 @@ For example, a representation of an ``Author`` model might include the books tha
     #   }
     # }
 
-    author_result, errors = AuthorSchema().dump(author)
+    author_result = AuthorSchema().dump(author)
     pprint(author_result, indent=2)
     # {
     #   "id": 8,
@@ -206,7 +242,7 @@ If the object to be marshalled has a relationship to an object of the same type,
     user.friends.append(User('Joe', 'joe@example.com'))
     user.employer = User('Dirk', 'dirk@example.com')
     result = UserSchema().dump(user)
-    pprint(result.data, indent=2)
+    pprint(result, indent=2)
     # {
     #     "name": "Steve",
     #     "email": "steve@example.com",
@@ -234,6 +270,6 @@ If the object to be marshalled has a relationship to an object of the same type,
 Next Steps
 ----------
 
-- Want to create your own field type? See the :ref:`Custom Fields <custom_fields>` page.
-- Need to add schema-level validation, post-processing, or error handling behavior? See the :ref:`Extending Schemas <extending>` page.
-- For example applications using marshmallow, check out the :ref:`Examples <examples>` page.
+- Want to create your own field type? See the :doc:`Custom Fields <custom_fields>` page.
+- Need to add schema-level validation, post-processing, or error handling behavior? See the :doc:`Extending Schemas <extending>` page.
+- For example applications using marshmallow, check out the :doc:`Examples <examples>` page.

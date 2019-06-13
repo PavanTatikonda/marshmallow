@@ -1,83 +1,126 @@
-# -*- coding: utf-8 -*-
+"""Tests for marshmallow.validate"""
 from __future__ import unicode_literals
 
 import re
 import pytest
 
-from marshmallow.compat import PY2
 from marshmallow import validate, ValidationError
 
-@pytest.mark.parametrize('valid_url', [
-    'http://example.org',
-    'https://example.org',
-    'ftp://example.org',
-    'ftps://example.org',
-    'http://example.co.jp',
-    'http://www.example.com/a%C2%B1b',
-    'http://www.example.com/~username/',
-    'http://info.example.com/?fred',
-    'http://xn--mgbh0fb.xn--kgbechtv/',
-    'http://example.com/blue/red%3Fand+green',
-    'http://www.example.com/?array%5Bkey%5D=value',
-    'http://xn--rsum-bpad.example.org/',
-    'http://123.45.67.8/',
-    'http://2001:db8::ff00:42:8329',
-    'http://www.example.com:8000/foo',
-])
+@pytest.mark.parametrize(
+    'valid_url', [
+        'http://example.org',
+        'https://example.org',
+        'ftp://example.org',
+        'ftps://example.org',
+        'http://example.co.jp',
+        'http://www.example.com/a%C2%B1b',
+        'http://www.example.com/~username/',
+        'http://info.example.com/?fred',
+        'http://xn--mgbh0fb.xn--kgbechtv/',
+        'http://example.com/blue/red%3Fand+green',
+        'http://www.example.com/?array%5Bkey%5D=value',
+        'http://xn--rsum-bpad.example.org/',
+        'http://123.45.67.8/',
+        'http://123.45.67.8:8329/',
+        'http://[2001:db8::ff00:42]:8329',
+        'http://[2001::1]:8329',
+        'http://www.example.com:8000/foo',
+        'http://user@example.com',
+        'http://user:pass@example.com',
+    ],
+)
 def test_url_absolute_valid(valid_url):
     validator = validate.URL(relative=False)
     assert validator(valid_url) == valid_url
 
-@pytest.mark.parametrize('invalid_url', [
-    'http:///example.com/',
-    'https:///example.com/',
-    'https://example.org\\',
-    'ftp:///example.com/',
-    'ftps:///example.com/',
-    'http//example.org',
-    'http:///',
-    'http:/example.org',
-    'foo://example.org',
-    '../icons/logo.gif',
-    'abc',
-    '..',
-    '/',
-    ' ',
-    '',
-    None,
-])
+@pytest.mark.parametrize(
+    'invalid_url', [
+        'http:///example.com/',
+        'https:///example.com/',
+        'https://example.org\\',
+        'ftp:///example.com/',
+        'ftps:///example.com/',
+        'http//example.org',
+        'http:///',
+        'http:/example.org',
+        'foo://example.org',
+        '../icons/logo.gif',
+        'http://2001:db8::ff00:42:8329',
+        'http://[192.168.1.1]:8329',
+        'abc',
+        '..',
+        '/',
+        ' ',
+        '',
+        None,
+    ],
+)
 def test_url_absolute_invalid(invalid_url):
     validator = validate.URL(relative=False)
     with pytest.raises(ValidationError):
         validator(invalid_url)
 
-@pytest.mark.parametrize('valid_url', [
-    'http://example.org',
-    'http://123.45.67.8/',
-    'http://example.com/foo/bar/../baz',
-    'https://example.com/../icons/logo.gif',
-    'http://example.com/./icons/logo.gif',
-    'ftp://example.com/../../../../g',
-    'http://example.com/g?y/./x',
-])
+@pytest.mark.parametrize(
+    'valid_url', [
+        'http://example.org',
+        'http://123.45.67.8/',
+        'http://example.com/foo/bar/../baz',
+        'https://example.com/../icons/logo.gif',
+        'http://example.com/./icons/logo.gif',
+        'ftp://example.com/../../../../g',
+        'http://example.com/g?y/./x',
+    ],
+)
 def test_url_relative_valid(valid_url):
     validator = validate.URL(relative=True)
     assert validator(valid_url) == valid_url
 
-@pytest.mark.parametrize('invalid_url', [
-    'http//example.org',
-    'suppliers.html',
-    '../icons/logo.gif',
-    '\icons/logo.gif',
-    '../.../g',
-    '...',
-    '\\',
-    ' ',
-    '',
-    None,
-])
+@pytest.mark.parametrize(  # noqa: W605
+    'invalid_url', [
+        'http//example.org',
+        'suppliers.html',
+        '../icons/logo.gif',
+        'icons/logo.gif',
+        '../.../g',
+        '...',
+        '\\',
+        ' ',
+        '',
+        None,
+    ],
+)
 def test_url_relative_invalid(invalid_url):
     validator = validate.URL(relative=True)
+    with pytest.raises(ValidationError):
+        validator(invalid_url)
+
+@pytest.mark.parametrize(
+    'valid_url', [
+        'http://example.org',
+        'http://123.45.67.8/',
+        'http://example',
+        'http://example.',
+        'http://example:80',
+        'http://user.name:pass.word@example',
+        'http://example/foo/bar',
+    ],
+)
+def test_url_dont_require_tld_valid(valid_url):
+    validator = validate.URL(require_tld=False)
+    assert validator(valid_url) == valid_url
+
+@pytest.mark.parametrize(
+    'invalid_url', [
+        'http//example',
+        'http://.example.org',
+        'http:///foo/bar',
+        'http:// /foo/bar',
+        '',
+        None,
+    ],
+)
+def test_url_dont_require_tld_invalid(invalid_url):
+    validator = validate.URL(require_tld=False)
     with pytest.raises(ValidationError):
         validator(invalid_url)
 
@@ -88,7 +131,7 @@ def test_url_custom_scheme():
     with pytest.raises(ValidationError):
         validator(url)
 
-    validator = validate.URL(schemes=set(['http', 'https', 'ws']))
+    validator = validate.URL(schemes={'http', 'https', 'ws'})
     assert validator(url) == url
 
 def test_url_relative_and_custom_schemes():
@@ -98,7 +141,7 @@ def test_url_relative_and_custom_schemes():
     with pytest.raises(ValidationError):
         validator(url)
 
-    validator = validate.URL(relative=True, schemes=set(['http', 'https', 'ws']))
+    validator = validate.URL(relative=True, schemes={'http', 'https', 'ws'})
     assert validator(url) == url
 
 def test_url_custom_message():
@@ -110,48 +153,52 @@ def test_url_custom_message():
 def test_url_repr():
     assert (
         repr(validate.URL(relative=False, error=None)) ==
-        '<URL(relative=False, error={0!r})>'
+        '<URL(relative=False, error={!r})>'
         .format('Not a valid URL.')
     )
     assert (
         repr(validate.URL(relative=True, error='foo')) ==
-        '<URL(relative=True, error={0!r})>'
+        '<URL(relative=True, error={!r})>'
         .format('foo')
     )
 
 
-@pytest.mark.parametrize('valid_email', [
-    'niceandsimple@example.com',
-    'NiCeAnDsImPlE@eXaMpLe.CoM',
-    'very.common@example.com',
-    'a.little.lengthy.but.fine@a.iana-servers.net',
-    'disposable.style.email.with+symbol@example.com',
-    '"very.unusual.@.unusual.com"@example.com',
-    "!#$%&'*+-/=?^_`{}|~@example.org",
-    'niceandsimple@[64.233.160.0]',
-    'niceandsimple@localhost',
-    u'josé@blah.com',
-    u'δοκ.ιμή@παράδειγμα.δοκιμή',
-])
+@pytest.mark.parametrize(
+    'valid_email', [
+        'niceandsimple@example.com',
+        'NiCeAnDsImPlE@eXaMpLe.CoM',
+        'very.common@example.com',
+        'a.little.lengthy.but.fine@a.iana-servers.net',
+        'disposable.style.email.with+symbol@example.com',
+        '"very.unusual.@.unusual.com"@example.com',
+        "!#$%&'*+-/=?^_`{}|~@example.org",
+        'niceandsimple@[64.233.160.0]',
+        'niceandsimple@localhost',
+        'josé@blah.com',
+        'δοκ.ιμή@παράδειγμα.δοκιμή',
+    ],
+)
 def test_email_valid(valid_email):
     validator = validate.Email()
     assert validator(valid_email) == valid_email
 
-@pytest.mark.parametrize('invalid_email', [
-    'a"b(c)d,e:f;g<h>i[j\\k]l@example.com',
-    'just"not"right@example.com',
-    'this is"not\allowed@example.com',
-    'this\\ still\\"not\\\\allowed@example.com',
-    '"much.more unusual"@example.com',
-    '"very.(),:;<>[]\".VERY.\"very@\\ \"very\".unusual"@strange.example.com',
-    '" "@example.org',
-    'user@example',
-    '@nouser.com',
-    'example.com',
-    'user',
-    '',
-    None,
-])
+@pytest.mark.parametrize(
+    'invalid_email', [
+        'a"b(c)d,e:f;g<h>i[j\\k]l@example.com',
+        'just"not"right@example.com',
+        'this is"not\allowed@example.com',
+        'this\\ still\\"not\\\\allowed@example.com',
+        '"much.more unusual"@example.com',
+        '"very.(),:;<>[]\".VERY.\"very@\\ \"very\".unusual"@strange.example.com',
+        '" "@example.org',
+        'user@example',
+        '@nouser.com',
+        'example.com',
+        'user',
+        '',
+        None,
+    ],
+)
 def test_email_invalid(invalid_email):
     validator = validate.Email()
     with pytest.raises(ValidationError):
@@ -166,12 +213,12 @@ def test_email_custom_message():
 def test_email_repr():
     assert (
         repr(validate.Email(error=None)) ==
-        '<Email(error={0!r})>'
+        '<Email(error={!r})>'
         .format('Not a valid email address.')
     )
     assert (
         repr(validate.Email(error='foo')) ==
-        '<Email(error={0!r})>'
+        '<Email(error={!r})>'
         .format('foo')
     )
 
@@ -180,23 +227,33 @@ def test_range_min():
     assert validate.Range(1, 2)(1) == 1
     assert validate.Range(0)(1) == 1
     assert validate.Range()(1) == 1
+    assert validate.Range(min_inclusive=False, max_inclusive=False)(1) == 1
     assert validate.Range(1, 1)(1) == 1
 
     with pytest.raises(ValidationError):
         validate.Range(2, 3)(1)
     with pytest.raises(ValidationError):
         validate.Range(2)(1)
+    with pytest.raises(ValidationError):
+        validate.Range(1, 2, min_inclusive=False, max_inclusive=True, error=None)(1)
+    with pytest.raises(ValidationError):
+        validate.Range(1, 1, min_inclusive=True, max_inclusive=False, error=None)(1)
 
 def test_range_max():
     assert validate.Range(1, 2)(2) == 2
     assert validate.Range(None, 2)(2) == 2
     assert validate.Range()(2) == 2
+    assert validate.Range(min_inclusive=False, max_inclusive=False)(2) == 2
     assert validate.Range(2, 2)(2) == 2
 
     with pytest.raises(ValidationError):
         validate.Range(0, 1)(2)
     with pytest.raises(ValidationError):
         validate.Range(None, 1)(2)
+    with pytest.raises(ValidationError):
+        validate.Range(1, 2, min_inclusive=True, max_inclusive=False, error=None)(2)
+    with pytest.raises(ValidationError):
+        validate.Range(2, 2, min_inclusive=False, max_inclusive=True, error=None)(2)
 
 def test_range_custom_message():
     v = validate.Range(2, 3, error='{input} is not between {min} and {max}')
@@ -216,12 +273,14 @@ def test_range_custom_message():
 
 def test_range_repr():
     assert (
-        repr(validate.Range(min=None, max=None, error=None)) ==
-        '<Range(min=None, max=None, error=None)>'
+        repr(
+            validate.Range(min=None, max=None, error=None, min_inclusive=True, max_inclusive=True),
+        ) == '<Range(min=None, max=None, min_inclusive=True, max_inclusive=True, error=None)>'
     )
     assert (
-        repr(validate.Range(min=1, max=3, error='foo')) ==
-        '<Range(min=1, max=3, error={0!r})>'
+        repr(
+            validate.Range(min=1, max=3, error='foo', min_inclusive=False, max_inclusive=False),
+        ) == '<Range(min=1, max=3, min_inclusive=False, max_inclusive=False, error={!r})>'
         .format('foo')
     )
 
@@ -310,12 +369,12 @@ def test_length_repr():
     )
     assert (
         repr(validate.Length(min=1, max=3, error='foo', equal=None)) ==
-        '<Length(min=1, max=3, equal=None, error={0!r})>'
+        '<Length(min=1, max=3, equal=None, error={!r})>'
         .format('foo')
     )
     assert (
         repr(validate.Length(min=None, max=None, error='foo', equal=5)) ==
-        '<Length(min=None, max=None, equal=5, error={0!r})>'
+        '<Length(min=None, max=None, equal=5, error={!r})>'
         .format('foo')
     )
 
@@ -341,12 +400,12 @@ def test_equal_custom_message():
 def test_equal_repr():
     assert (
         repr(validate.Equal(comparable=123, error=None)) ==
-        '<Equal(comparable=123, error={0!r})>'
+        '<Equal(comparable=123, error={!r})>'
         .format('Must be equal to {other}.')
     )
     assert (
         repr(validate.Equal(comparable=123, error='foo')) ==
-        '<Equal(comparable=123, error={0!r})>'
+        '<Equal(comparable=123, error={!r})>'
         .format('foo')
     )
 
@@ -394,18 +453,18 @@ def test_regexp_custom_message():
 def test_regexp_repr():
     assert (
         repr(validate.Regexp(regex='abc', flags=0, error=None)) ==
-        '<Regexp(regex={0!r}, error={1!r})>'
+        '<Regexp(regex={!r}, error={!r})>'
         .format(re.compile('abc'), 'String does not match expected pattern.')
     )
     assert (
         repr(validate.Regexp(regex='abc', flags=re.IGNORECASE, error='foo')) ==
-        '<Regexp(regex={0!r}, error={1!r})>'
+        '<Regexp(regex={!r}, error={!r})>'
         .format(re.compile('abc', re.IGNORECASE), 'foo')
     )
 
 
 def test_predicate():
-    class Dummy(object):
+    class Dummy:
         def _true(self):
             return True
 
@@ -442,7 +501,7 @@ def test_predicate():
         validate.Predicate('_identity', arg='')(d)
 
 def test_predicate_custom_message():
-    class Dummy(object):
+    class Dummy:
         def _false(self):
             return False
 
@@ -456,13 +515,13 @@ def test_predicate_custom_message():
 def test_predicate_repr():
     assert (
         repr(validate.Predicate(method='foo', error=None)) ==
-        '<Predicate(method={0!r}, kwargs={1!r}, error={2!r})>'
+        '<Predicate(method={!r}, kwargs={!r}, error={!r})>'
         .format('foo', {}, 'Invalid input.')
     )
     assert (
         repr(validate.Predicate(method='foo', error='bar', zoo=1)) ==
-        '<Predicate(method={0!r}, kwargs={1!r}, error={2!r})>'
-        .format('foo', {str('zoo') if PY2 else 'zoo': 1}, 'bar')
+        '<Predicate(method={!r}, kwargs={!r}, error={!r})>'
+        .format('foo', {'zoo': 1}, 'bar')
     )
 
 
@@ -491,7 +550,7 @@ def test_noneof_custom_message():
 
     none_of = validate.NoneOf(
         [1, 2],
-        error='{input} cannot be one of {values}'
+        error='{input} cannot be one of {values}',
     )
     with pytest.raises(ValidationError) as excinfo:
         none_of(1)
@@ -500,12 +559,12 @@ def test_noneof_custom_message():
 def test_noneof_repr():
     assert (
         repr(validate.NoneOf(iterable=[1, 2, 3], error=None)) ==
-        '<NoneOf(iterable=[1, 2, 3], error={0!r})>'
+        '<NoneOf(iterable=[1, 2, 3], error={!r})>'
         .format('Invalid input.')
     )
     assert (
         repr(validate.NoneOf(iterable=[1, 2, 3], error='foo')) ==
-        '<NoneOf(iterable=[1, 2, 3], error={0!r})>'
+        '<NoneOf(iterable=[1, 2, 3], error={!r})>'
         .format('foo')
     )
 
@@ -519,7 +578,7 @@ def test_oneof():
 
     with pytest.raises(ValidationError) as excinfo:
         validate.OneOf([1, 2, 3])(4)
-    assert 'Not a valid choice.' in str(excinfo)
+    assert 'Must be one of: 1, 2, 3.' in str(excinfo)
     with pytest.raises(ValidationError):
         validate.OneOf('abc')('d')
     with pytest.raises(ValidationError):
@@ -566,28 +625,29 @@ def test_oneof_text():
 def test_oneof_custom_message():
     oneof = validate.OneOf([1, 2, 3], error='{input} is not one of {choices}')
     expected = '4 is not one of 1, 2, 3'
-    with pytest.raises(ValidationError) as excinfo:
+    with pytest.raises(ValidationError):
         oneof(4)
     assert expected in str(expected)
 
-    oneof = validate.OneOf([1, 2, 3],
+    oneof = validate.OneOf(
+        [1, 2, 3],
         ['one', 'two', 'three'],
-        error='{input} is not one of {labels}'
+        error='{input} is not one of {labels}',
     )
     expected = '4 is not one of one, two, three'
-    with pytest.raises(ValidationError) as excinfo:
+    with pytest.raises(ValidationError):
         oneof(4)
     assert expected in str(expected)
 
 def test_oneof_repr():
     assert (
         repr(validate.OneOf(choices=[1, 2, 3], labels=None, error=None)) ==
-        '<OneOf(choices=[1, 2, 3], labels=[], error={0!r})>'
-        .format('Not a valid choice.')
+        '<OneOf(choices=[1, 2, 3], labels=[], error={!r})>'
+        .format('Must be one of: {choices}.')
     )
     assert (
         repr(validate.OneOf(choices=[1, 2, 3], labels=['a', 'b', 'c'], error='foo')) ==
-        '<OneOf(choices=[1, 2, 3], labels={0!r}, error={1!r})>'
+        '<OneOf(choices=[1, 2, 3], labels={!r}, error={!r})>'
         .format(['a', 'b', 'c'], 'foo')
     )
 
@@ -601,11 +661,12 @@ def test_containsonly_in_list():
     assert validate.ContainsOnly([1, 2, 3])([1, 2, 3]) == [1, 2, 3]
     assert validate.ContainsOnly([1, 2, 3])([3, 1, 2]) == [3, 1, 2]
     assert validate.ContainsOnly([1, 2, 3])([2, 3, 1]) == [2, 3, 1]
+    assert validate.ContainsOnly([1, 2, 3])([1, 2, 3, 1]) == [1, 2, 3, 1]
+    assert validate.ContainsOnly([1, 2, 3])([]) == []
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError) as excinfo:
         validate.ContainsOnly([1, 2, 3])([4])
-    with pytest.raises(ValidationError):
-        validate.ContainsOnly([1, 2, 3])([])
+    assert 'One or more of the choices you made was not in: 1, 2, 3.' in str(excinfo)
     with pytest.raises(ValidationError):
         validate.ContainsOnly([])([1])
 
@@ -617,11 +678,10 @@ def test_contains_only_unhashable_types():
     assert validate.ContainsOnly([[1], [2], [3]])([[1], [2], [3]]) == [[1], [2], [3]]
     assert validate.ContainsOnly([[1], [2], [3]])([[3], [1], [2]]) == [[3], [1], [2]]
     assert validate.ContainsOnly([[1], [2], [3]])([[2], [3], [1]]) == [[2], [3], [1]]
+    assert validate.ContainsOnly([[1], [2], [3]])([]) == []
 
     with pytest.raises(ValidationError):
         validate.ContainsOnly([[1], [2], [3]])([[4]])
-    with pytest.raises(ValidationError):
-        validate.ContainsOnly([[1], [2], [3]])([])
     with pytest.raises(ValidationError):
         validate.ContainsOnly([])([1])
 
@@ -634,11 +694,9 @@ def test_containsonly_in_tuple():
     assert validate.ContainsOnly((1, 2, 3))((1, 2, 3)) == (1, 2, 3)
     assert validate.ContainsOnly((1, 2, 3))((3, 1, 2)) == (3, 1, 2)
     assert validate.ContainsOnly((1, 2, 3))((2, 3, 1)) == (2, 3, 1)
-
+    assert validate.ContainsOnly((1, 2, 3))(()) == tuple()
     with pytest.raises(ValidationError):
         validate.ContainsOnly((1, 2, 3))((4,))
-    with pytest.raises(ValidationError):
-        validate.ContainsOnly((1, 2, 3))(())
     with pytest.raises(ValidationError):
         validate.ContainsOnly(())((1,))
 
@@ -652,50 +710,42 @@ def test_contains_only_in_string():
     assert validate.ContainsOnly('abc')('abc') == 'abc'
     assert validate.ContainsOnly('abc')('cab') == 'cab'
     assert validate.ContainsOnly('abc')('bca') == 'bca'
+    assert validate.ContainsOnly('abc')('') == ''
 
     with pytest.raises(ValidationError):
         validate.ContainsOnly('abc')('d')
     with pytest.raises(ValidationError):
-        validate.ContainsOnly('abc')('')
-    with pytest.raises(ValidationError):
         validate.ContainsOnly('')('a')
 
-def test_contains_only_invalid():
-    with pytest.raises(ValidationError) as excinfo:
-        validate.ContainsOnly([1, 2, 3])([1, 1])
-    assert 'One or more of the choices you made was not acceptable.' in str(excinfo)
-    with pytest.raises(ValidationError):
-        validate.ContainsOnly([1, 1, 2])([2, 2])
-    with pytest.raises(ValidationError):
-        validate.ContainsOnly([1, 1, 2])([1, 1, 1])
 
 def test_containsonly_custom_message():
     containsonly = validate.ContainsOnly(
         [1, 2, 3],
-        error='{input} is not one of {choices}'
+        error='{input} is not one of {choices}',
     )
     expected = '4, 5 is not one of 1, 2, 3'
-    with pytest.raises(ValidationError) as excinfo:
+    with pytest.raises(ValidationError):
         containsonly([4, 5])
     assert expected in str(expected)
 
-    containsonly = validate.ContainsOnly([1, 2, 3],
+    containsonly = validate.ContainsOnly(
+        [1, 2, 3],
         ['one', 'two', 'three'],
-        error='{input} is not one of {labels}'
+        error='{input} is not one of {labels}',
     )
     expected = '4, 5 is not one of one, two, three'
-    with pytest.raises(ValidationError) as excinfo:
+    with pytest.raises(ValidationError):
         containsonly([4, 5])
     assert expected in str(expected)
 
 def test_containsonly_repr():
     assert (
         repr(validate.ContainsOnly(choices=[1, 2, 3], labels=None, error=None)) ==
-        '<ContainsOnly(choices=[1, 2, 3], labels=[], error={0!r})>'
-        .format('One or more of the choices you made was not acceptable.')
+        '<ContainsOnly(choices=[1, 2, 3], labels=[], error={!r})>'
+        .format('One or more of the choices you made was not in: {choices}.')
     )
     assert (
         repr(validate.ContainsOnly(choices=[1, 2, 3], labels=['a', 'b', 'c'], error='foo')) ==
-        '<ContainsOnly(choices=[1, 2, 3], labels={0!r}, error={1!r})>'
+        '<ContainsOnly(choices=[1, 2, 3], labels={!r}, error={!r})>'
         .format(['a', 'b', 'c'], 'foo')
     )

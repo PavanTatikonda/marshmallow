@@ -3,7 +3,7 @@
 Installation
 ============
 
-**marshmallow** requires Python >= 2.6 or >= 3.3. It has no external dependencies other than the Python standard library.
+**marshmallow** requires Python >= 3.5. It has no external dependencies other than the Python standard library.
 
 .. note::
 
@@ -11,7 +11,7 @@ Installation
 
     ::
 
-        $ pip install python-dateutil
+        $ pip install 'python-dateutil>=2.7.0'
 
 Installing/Upgrading from the PyPI
 ----------------------------------
@@ -47,4 +47,4 @@ To get the latest development version of marshmallow, run
 
 .. seealso::
 
-    Need help upgrading to newer releases? See the :ref:`Upgrading to Newer Releases <upgrading>` page.
+    Need help upgrading to newer releases? See the :doc:`Upgrading to Newer Releases <upgrading>` page.

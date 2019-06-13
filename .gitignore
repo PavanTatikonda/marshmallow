@@ -27,6 +27,7 @@ htmlcov
 .tox
 nosetests.xml
 .cache
+.pytest_cache
 
 # Translations
 *.mo
@@ -63,6 +64,12 @@ pylintrc
 env
 venv
 
+# pyenv
+.python-version
+
+# pytest
+.pytest_cache
+
 # Other
 .directory
-
+*.pprof

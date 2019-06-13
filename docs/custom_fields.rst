@@ -1,6 +1,4 @@
 
-.. _custom_fields:
-
 Custom Fields
 =============
 
@@ -15,17 +13,24 @@ The method you choose will depend on the manner in which you intend to reuse the
 Creating A Field Class
 ----------------------
 
-To create a custom field class, create a subclass of :class:`marshmallow.fields.Field` and implement its :meth:`_serialize <marshmallow.fields.Field._serialize>`, and/or :meth:`_deserialize <marshmallow.fields.Field._deserialize>` methods.
+To create a custom field class, create a subclass of :class:`marshmallow.fields.Field` and implement its :meth:`_serialize <marshmallow.fields.Field._serialize>` and/or :meth:`_deserialize <marshmallow.fields.Field._deserialize>` methods.
 
 .. code-block:: python
 
     from marshmallow import fields
 
-    class Titlecased(fields.Field):
-        def _serialize(self, value, attr, obj):
+    class TitleCased(fields.Field):
+        """Field that serializes to a title case string and deserializes
+        to a lower case string.
+        """
+        def _serialize(self, value, attr, obj, **kwargs):
             if value is None:
                 return ''
             return value.title()
+
+        def _deserialize(self, value, attr, data, **kwargs):
+            return value.lower()
+
 
     class UserSchema(Schema):
         name = fields.String()
@@ -83,7 +88,7 @@ Both :class:`Function <marshmallow.fields.Function>` and :class:`Method <marshma
 
     schema = UserSchema()
     result = schema.load({'balance': '100.00'})
-    result.data['balance']  # => 100.0
+    result['balance']  # => 100.0
 
 .. _adding-context:
 
@@ -97,7 +102,7 @@ In these cases, you can set the ``context`` attribute (a dictionary) of a `Schem
 As an example, you might want your ``UserSchema`` to output whether or not a ``User`` is the author of a ``Blog`` or whether the a certain word appears in a ``Blog's`` title.
 
 .. code-block:: python
-    :emphasize-lines: 4,8,16
+    :emphasize-lines: 4,8,15
 
     class UserSchema(Schema):
         name = fields.String()
@@ -105,7 +110,6 @@ As an example, you might want your ``UserSchema`` to output whether or not a ``U
         is_author = fields.Function(lambda user, context: user == context['blog'].author)
         likes_bikes = fields.Method('writes_about_bikes')
 
-        # Method fields also optionally receive context argument
         def writes_about_bikes(self, user):
             return 'bicycle' in self.context['blog'].title.lower()
 
@@ -115,15 +119,15 @@ As an example, you might want your ``UserSchema`` to output whether or not a ``U
     blog = Blog('Bicycle Blog', author=user)
 
     schema.context = {'blog': blog}
-    data, errors = schema.dump(user)
-    data['is_author']  # => True
-    data['likes_bikes']  # => True
+    result = schema.dump(user)
+    result['is_author']  # => True
+    result['likes_bikes']  # => True
 
 
 Customizing Error Messages
 --------------------------
 
-Validation error messages for fields can be configured a the class or instance level.
+Validation error messages for fields can be configured at the class or instance level.
 
 At the class level, default error messages are defined as a mapping from error codes to error messages.
 
@@ -156,5 +160,5 @@ Error messages can also be passed to a `Field's` constructor.
 Next Steps
 ----------
 
-- Need to add schema-level validation, post-processing, or error handling behavior? See the :ref:`Extending Schemas <extending>` page.
-- For example applications using marshmallow, check out the :ref:`Examples <examples>` page.
+- Need to add schema-level validation, post-processing, or error handling behavior? See the :doc:`Extending Schemas <extending>` page.
+- For example applications using marshmallow, check out the :doc:`Examples <examples>` page.

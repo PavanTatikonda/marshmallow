@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from marshmallow.exceptions import ValidationError
 
 
@@ -17,11 +16,9 @@ class TestValidationError:
         err = ValidationError(messages)
         assert err.messages == messages
 
-    def test_can_store_field_names(self):
-        err = ValidationError('invalid email', field_names='email')
-        assert err.field_names == ['email']
-        err = ValidationError('invalid email', field_names=['email'])
-        assert err.field_names == ['email']
+    def test_can_store_field_name(self):
+        err = ValidationError('invalid email', field_name='email')
+        assert err.field_name == 'email'
 
     def test_str(self):
         err = ValidationError('invalid email')

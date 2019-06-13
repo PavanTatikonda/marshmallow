@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """A registry of :class:`Schema <marshmallow.Schema>` classes. This allows for string
 lookup of schemas, which may be used with
 class:`fields.Nested <marshmallow.fields.Nested>`.
@@ -8,8 +7,6 @@ class:`fields.Nested <marshmallow.fields.Nested>`.
     This module is treated as private API.
     Users should not need to use this module directly.
 """
-from __future__ import unicode_literals
-
 from marshmallow.exceptions import RegistryError
 
 # {
@@ -48,11 +45,15 @@ def register(classname, cls):
     if classname in _registry and not \
             any(each.__module__ == module for each in _registry[classname]):
         _registry[classname].append(cls)
-    else:
+    elif classname not in _registry:
         _registry[classname] = [cls]
 
     # Also register the full path
-    _registry.setdefault(fullpath, []).append(cls)
+    if fullpath not in _registry:
+        _registry.setdefault(fullpath, []).append(cls)
+    else:
+        # If fullpath does exist, replace existing entry
+        _registry[fullpath] = [cls]
     return None
 
 def get_class(classname, all=False):
@@ -64,13 +65,17 @@ def get_class(classname, all=False):
     try:
         classes = _registry[classname]
     except KeyError:
-        raise RegistryError('Class with name {0!r} was not found. You may need '
-            'to import the class.'.format(classname))
+        raise RegistryError(
+            'Class with name {!r} was not found. You may need '
+            'to import the class.'.format(classname),
+        )
     if len(classes) > 1:
         if all:
             return _registry[classname]
-        raise RegistryError('Multiple classes with name {0!r} '
+        raise RegistryError(
+            'Multiple classes with name {!r} '
             'were found. Please use the full, '
-            'module-qualified path.'.format(classname))
+            'module-qualified path.'.format(classname),
+        )
     else:
         return _registry[classname][0]

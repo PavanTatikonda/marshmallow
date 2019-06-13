@@ -15,11 +15,6 @@ Schema
 
 .. autoclass:: marshmallow.SchemaOpts
 
-.. autoclass:: marshmallow.MarshalResult
-.. autoclass:: marshmallow.UnmarshalResult
-
-.. autofunction:: marshmallow.pprint
-
 .. _api_fields:
 
 Fields
@@ -47,10 +42,10 @@ Utility Functions
 .. automodule:: marshmallow.utils
     :members:
 
-Marshalling
+Error Store
 ===========
 
-.. automodule:: marshmallow.marshalling
+.. automodule:: marshmallow.error_store
     :members:
     :private-members:
 

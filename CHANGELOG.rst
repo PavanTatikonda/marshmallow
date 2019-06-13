@@ -1,6 +1,737 @@
 Changelog
 ---------
 
+3.0.0 (unreleased)
+++++++++++++++++++
+
+Features:
+
+- *Backwards-incompatible*: ``many`` is passed as a keyword argument to methods decorated with
+  ``pre_load``, ``post_load``, ``pre_dump``, ``post_dump``,
+  and ``validates_schema``. ``partial`` is passed as a keyword argument to
+  methods decorated with ``pre_load``, ``post_load`` and ``validates_schema``.
+  ``**kwargs`` should be added to all decorated methods.
+- Add ``min_inclusive`` and ``max_exclusive`` parameters to
+  ``validate.Range`` (:issue:`1221`). Thanks :user:`kdop` for the PR.
+- Fix propagation of "partial" to Nested containers (part of :issue:`779`).
+
+Other changes:
+
+- *Backwards-incompatible*: Use keyword-only arguments (:issue:`1216`).
+
+3.0.0rc6 (2019-05-05)
++++++++++++++++++++++
+
+Support:
+
+- *Backwards-incompatible*: Remove support for Python 2 (:issue:`1120`).
+  Only Python>=3.5 is supported.
+  Thank you :user:`rooterkyberian` for the suggestion and the PR.
+- *Backwards-incompatible*: Remove special-casing in ``fields.List`` and
+  ``fields.Tuple`` for accessing nested attributes (:pr:`1188`).
+  Use ``fields.List(fields.Pluck(...))`` instead.
+- Add ``python_requires`` to ``setup.py`` (:pr:`1194`).
+  Thanks :user:`hugovk`.
+- Upgrade syntax with ``pyupgrade`` in pre-commit (:pr:`1195`). Thanks
+  again :user:`hugovk`.
+
+3.0.0rc5 (2019-03-30)
++++++++++++++++++++++
+
+Features:
+
+- Allow input value to be included in error messages
+  for a number of fields (:pr:`1129`). Thanks :user:`hdoupe` for the PR.
+- Improve default error messages for ``OneOf`` and ``ContainsOnly``
+  (:issue:`885`). Thanks :user:`mcgfeller` for the suggestion
+  and :user:`maxalbert` for the PR.
+
+Deprecations/Removals:
+
+- Remove ``fields.FormattedString`` (:issue:`1141`). Use
+  ``fields.Function`` or ``fields.Method`` instead.
+
+Bug fixes:
+
+- Includes bug fix from 2.19.2.
+
+3.0.0rc4 (2019-02-08)
++++++++++++++++++++++
+
+Features:
+
+- Add ``fields.Tuple`` (:issue:`1103`) Thanks :user:`zblz` for the PR.
+- Add ``fields.Mapping``, which makes it easier to support other
+  mapping types (e.g. ``OrderedDict``)  (:issue:`1092`).
+  Thank :user:`sayanarijit` for the suggestion and the PR.
+
+3.0.0rc3 (2019-01-13)
++++++++++++++++++++++
+
+Features:
+
+- Make the error messages for "unknown fields" and "invalid data type"
+  configurable (:issue:`852`). Thanks :user:`Dunstrom` for the PR.
+- ``fields.Boolean`` parses ``"yes"``/``"no"`` values (:pr:`1081`).
+  Thanks :user:`r1b`.
+
+Other changes:
+
+- *Backwards-incompatible with previous 3.x versions*: Change ordering
+  of ``keys`` and ``values`` arguments to ``fields.Dict``.
+- Remove unused code in `marshmallow.utils`: ``is_indexable_but_not_string``,
+  ``float_to_decimal``, ``decimal_to_fixed``, ``from_iso`` (:pr:`1088`).
+- Remove unused ``marshmallow.compat.string_types``.
+
+Bug fixes:
+
+- Includes bug fix from 2.18.0.
+
+3.0.0rc2 (2019-01-03)
++++++++++++++++++++++
+
+Features:
+
+- Add ``register`` *class Meta* option to allow bypassing marshmallow's
+  internal class registry when memory usage is critical (:issue:`660`).
+
+Bug fixes:
+
+- Fix serializing dict-like objects with properties (:issue:`1060`).
+  Thanks :user:`taion` for the fix.
+- Fix populating ``ValidationError.valid_data`` for ``List`` and
+  ``Dict`` fields (:issue:`766`).
+
+Other changes:
+
+- Add ``marshmallow.__version_info__`` (:pr:`1074`).
+- Remove the ``marshmallow.marshalling`` internal module (:pr:`1070`).
+- A ``ValueError`` is raised when the ``missing`` parameter is passed
+  for required fields (:issue:`1040`).
+- Extra keyword arguments passed to ``ValidationError`` in validators
+  are no longer passed to the final ``ValidationError`` raised upon
+  validation completion (:issue:`996`).
+
+3.0.0rc1 (2018-11-29)
++++++++++++++++++++++
+
+Features:
+
+- *Backwards-incompatible*: Rework ``ValidationError`` API.
+  It now expects a single field name, and error structures are merged
+  in the final ``ValidationError`` raised when validation completes.
+  This allows schema-level validators to raise errors for individual
+  fields (:issue:`441`). Thanks :user:`maximkulkin` for
+  writing the original ``merge_errors`` implementation in :pr:`442` and thanks
+  :user:`lafrech` for completing the implementation in :pr:`1026`.
+
+Bug fixes:
+
+- Fix ``TypeError`` when serializing ``None`` with ``Pluck`` (:pr:`1049`).
+  Thanks :user:`toffan` for the catch and patch.
+
+3.0.0b20 (2018-11-01)
++++++++++++++++++++++
+
+Bug fixes:
+
+- Includes bug fixes from 2.16.2 and 2.16.3.
+
+3.0.0b19 (2018-10-24)
++++++++++++++++++++++
+
+Features:
+
+- Support partial loading of nested fields (:pr:`438`). Thanks
+  :user:`arbor-dwatson` for the PR. *Note*: Subclasses of ``fields.Nested``
+  now take an additional ``partial`` parameter in the ``_deserialize``
+  method.
+
+Bug fixes:
+
+- Restore ``Schema.TYPE_MAPPING``, which was removed in 3.0.0b17 (:issue:`1012`).
+
+3.0.0b18 (2018-10-15)
++++++++++++++++++++++
+
+Bug fixes:
+
+- Fix ``Date`` deserialization when using custom format (:issue:`1001`). Thanks
+  :user:`Ondkloss` for reporting.
+
+Deprecations/Removals:
+
+- ``prefix`` parameter or ``Schema`` class is removed (:issue:`991`). The same
+  can be achieved using a ``@post_dump`` method.
+
+
+3.0.0b17 (2018-10-13)
++++++++++++++++++++++
+
+Features:
+
+- Add ``format`` option to ``Date`` field (:pr:`869`).
+- *Backwards-incompatible*: Rename ``DateTime``'s ``dateformat`` Meta option
+  to ``datetimeformat``. ``dateformat`` now applies to ``Date`` (:pr:`869`).
+  Thanks :user:`knagra` for implementing these changes.
+- Enforce ISO 8601 when deserializing date and time (:issue:`899`).
+  Thanks :user:`dushr` for the report and the work on the PR.
+- *Backwards-incompatible*: Raise ``ValueError`` on ``Schema`` instantiation in
+  case of ``attribute`` or ``data_key`` collision (:pr:`992`).
+
+Bug fixes:
+
+- Fix inconsistencies in field inference by refactoring the inference feature
+  into a dedicated field (:issue:`809`). Thanks :user:`taion` for the PR.
+- When ``unknown`` is not passed to ``Nested``, default to nested ``Schema``
+  ``unknown`` meta option rather than ``RAISE`` (:pr:`963`).
+  Thanks :user:`vgavro` for the PR.
+- Fix loading behavior of ``fields.Pluck`` (:pr:`990`).
+- Includes bug fix from 2.16.0.
+
+3.0.0b16 (2018-09-20)
++++++++++++++++++++++
+
+Bug fixes:
+
+- Fix ``root`` attribute for nested container fields
+  on inheriting schemas (:issue:`956`). Thanks :user:`bmcbu`
+  for reporting.
+
+3.0.0b15 (2018-09-18)
++++++++++++++++++++++
+
+Bug fixes:
+
+- Raise ``ValidationError`` instead of ``TypeError`` when non-iterable types are
+  validated with ``many=True`` (:issue:`851`).
+- ``many=True`` no longer iterates over ``str`` and ``collections.abc.Mapping`` objects and instead
+  raises a ``ValidationError`` with ``{'_schema': ['Invalid input type.']}`` (:issue:`930`).
+- Return ``[]`` as ``ValidationError.valid_data`` instead of ``{}`` when
+  ``many=True`` (:issue:`907`).
+
+Thanks :user:`tuukkamustonen` for implementing these changes.
+
+3.0.0b14 (2018-09-15)
++++++++++++++++++++++
+
+Features:
+
+- Add ``fields.Pluck`` for serializing a single field from a nested object
+  (:issue:`800`). Thanks :user:`timc13` for the feedback and :user:`deckar01`
+  for the implementation.
+- *Backwards-incompatible*: Passing a string argument as ``only`` to
+  ``fields.Nested`` is no longer supported. Use ``fields.Pluck`` instead
+  (:issue:`800`).
+- Raise a `StringNotCollectionError` if ``only`` or ``exclude`` is
+  passed as a string to ``fields.Nested`` (:pr:`931`).
+- *Backwards-incompatible*: ``Float`` takes an ``allow_nan`` parameter to
+  explicitly allow serializing and deserializing special values (``nan``,
+  ``inf`` and ``-inf``). ``allow_nan`` defaults to ``False``.
+
+Other changes:
+
+- *Backwards-incompatible*: ``Nested`` field now defaults to ``unknown=RAISE``
+  instead of ``EXCLUDE``. This harmonizes behavior with ``Schema`` that
+  already defaults to ``RAISE`` (:issue:`908`). Thanks :user:`tuukkamustonen`.
+- Tested against Python 3.7.
+
+3.0.0b13 (2018-08-04)
++++++++++++++++++++++
+
+Bug fixes:
+
+- Errors reported by a schema-level validator for a field in a ``Nested`` field
+  are stored under corresponding field name, not ``_schema`` key (:pr:`862`).
+- Includes bug fix from 2.15.4.
+
+Other changes:
+
+- *Backwards-incompatible*: The ``unknown`` option now defaults to ``RAISE``
+  (`#524 (comment) <https://github.com/marshmallow-code/marshmallow/issues/524#issuecomment-397165731>`_,
+  :issue:`851`).
+- *Backwards-incompatible*: When a schema error is raised with a ``dict`` as
+  payload, the ``dict`` overwrites any existing error list. Before this change,
+  it would be appended to the list.
+- Raise a `StringNotCollectionError` if ``only`` or ``exclude`` is
+  passed as a string (:issue:`316`). Thanks :user:`paulocheque` for
+  reporting.
+
+3.0.0b12 (2018-07-04)
++++++++++++++++++++++
+
+Features:
+
+- The behavior to apply when encountering unknown fields while deserializing
+  can be controlled with the ``unknown`` option (:issue:`524`,
+  :issue:`747`, :issue:`127`).
+  It makes it possible to either "include", "exclude", or "raise".
+  Thanks :user:`tuukkamustonen` for the suggestion and thanks
+  :user:`ramnes` for the PR.
+
+.. warning::
+
+  The default for ``unknown`` will be changed to ``RAISE`` in the
+  next release.
+
+Other changes:
+
+- *Backwards-incompatible*: Pre/Post-processors MUST return modified data.
+  Returning ``None`` does not imply data were mutated (:issue:`347`). Thanks
+  :user:`tdevelioglu` for reporting.
+- *Backwards-incompatible*: ``only`` and ``exclude`` are bound by
+  declared and additional fields. A ``ValueError`` is raised if invalid
+  fields are passed (:issue:`636`). Thanks :user:`jan-23` for reporting.
+  Thanks :user:`ikilledthecat` and :user:`deckar01` for the PRs.
+- Format code using pre-commit (:pr:`855`).
+
+Deprecations/Removals:
+
+- ``ValidationError.fields`` is removed (:issue:`840`). Access field
+  instances from ``Schema.fields``.
+
+3.0.0b11 (2018-05-20)
++++++++++++++++++++++
+
+Features:
+
+- Clean up code for schema hooks (:pr:`814`). Thanks :user:`taion`.
+- Minor performance improvement from simplifying ``utils.get_value`` (:pr:`811`). Thanks again :user:`taion`.
+- Add ``require_tld`` argument to ``fields.URL`` (:issue:`749`). Thanks
+  :user:`DenerKup` for reporting and thanks :user:`surik00` for the PR.
+- ``fields.UUID`` deserializes ``bytes`` strings using ``UUID(bytes=b'...')`` (:pr:`625`).
+  Thanks :user:`JeffBerger` for the suggestion and the PR.
+
+Bug fixes:
+
+- Fields nested within ``Dict`` correctly inherit context from their
+  parent schema (:issue:`820`). Thanks :user:`RosanneZe` for reporting
+  and :user:`deckar01` for the PR.
+- Includes bug fix from 2.15.3.
+
+
+3.0.0b10 (2018-05-10)
++++++++++++++++++++++
+
+Bug fixes:
+
+- Includes bugfixes from 2.15.2.
+
+3.0.0b9 (2018-04-25)
+++++++++++++++++++++
+
+Features:
+
+- *Backwards-incompatible*: ``missing`` and ``default`` values are
+  passed in deserialized form (:issue:`378`). Thanks :user:`chadrik` for
+  the suggestion and thanks :user:`lafrech` for the PR.
+
+Bug fixes:
+
+- Includes the bugfix from 2.15.1.
+
+3.0.0b8 (2018-03-24)
+++++++++++++++++++++
+
+Features:
+
+- *Backwards-incompatible*: Add ``data_key`` parameter to fields for
+  specifying the key in the input and output data dict. This
+  parameter replaces both ``load_from`` and ``dump_to`` (:issue:`717`).
+  Thanks :user:`lafrech`.
+- *Backwards-incompatible*: When `pass_original=True` is passed to one
+  of the decorators and a collection is being (de)serialized, the
+  `original_data` argument will be a single object unless
+  `pass_many=True` is also passed to the decorator (:issue:`315`,
+  :issue:`743`). Thanks :user:`stj` for the PR.
+- *Backwards-incompatible*: Don't recursively check nested required
+  fields when the Nested field's key is missing (:issue:`319`). This
+  reverts :pr:`235`. Thanks :user:`chekunkov` reporting and thanks
+  :user:`lafrech` for the PR.
+- *Backwards-incompatible*: Change error message collection for `Dict` field (:issue:`730`). Note:
+  this is backwards-incompatible with previous 3.0.0bX versions.
+  Thanks :user:`shabble` for the report and thanks :user:`lafrech` for the PR.
+
+3.0.0b7 (2018-02-03)
+++++++++++++++++++++
+
+Features:
+
+- *Backwards-incompatible*: Schemas are always strict (:issue:`377`).
+  The ``strict`` parameter is removed.
+- *Backwards-incompatible*: `Schema().load` and `Schema().dump` return ``data`` instead of a
+  ``(data, errors)`` tuple (:issue:`598`).
+- *Backwards-incomaptible*: `Schema().load(None)` raises a
+  `ValidationError` (:issue:`511`).
+
+See :ref:`upgrading_3_0` for a guide on updating your code.
+
+Thanks :user:`lafrech` for implementing these changes.
+Special thanks to :user:`MichalKononenko`, :user:`douglas-treadwell`, and
+:user:`maximkulkin` for the discussions on these changes.
+
+
+Other changes:
+
+- *Backwards-incompatible*: Field name is not checked when ``load_from``
+  is specified (:pr:`714`). Thanks :user:`lafrech`.
+
+Support:
+
+- Add `Code of Conduct <https://marshmallow.readthedocs.io/en/dev/code_of_conduct.html>`_.
+
+
+3.0.0b6 (2018-01-02)
+++++++++++++++++++++
+
+Bug fixes:
+
+- Fixes `ValidationError.valid_data` when a nested field contains errors
+  (:issue:`710`). This bug was introduced in 3.0.0b3. Thanks
+  :user:`lafrech`.
+
+Other changes:
+
+- *Backwards-incompatible*: ``Email`` and ``URL`` fields don't validate
+  on serialization (:issue:`608`). This makes them more consistent with the other
+  fields and improves serialization performance. Thanks again :user:`lafrech`.
+- ``validate.URL`` requires square brackets around IPv6 URLs (:issue:`707`). Thanks :user:`harlov`.
+
+3.0.0b5 (2017-12-30)
+++++++++++++++++++++
+
+Features:
+
+- Add support for structured dictionaries by providing values and keys arguments to the
+  ``Dict`` field's constructor. This mirrors the ``List``
+  field's ability to validate its items (:issue:`483`). Thanks :user:`deckar01`.
+
+Other changes:
+
+- *Backwards-incompatible*: ``utils.from_iso`` is deprecated in favor of
+  ``utils.from_iso_datetime`` (:issue:`694`). Thanks :user:`sklarsa`.
+
+3.0.0b4 (2017-10-23)
+++++++++++++++++++++
+
+Features:
+
+- Add support for millisecond, minute, hour, and week precisions to
+  ``fields.TimeDelta`` (:issue:`537`). Thanks :user:`Fedalto` for the
+  suggestion and the PR.
+- Includes features from release 2.14.0.
+
+
+Support:
+
+- Copyright year in docs uses CHANGELOG.rst's modified date for
+  reproducible builds (:issue:`679`). Thanks :user:`bmwiedemann`.
+- Test against Python 3.6 in tox. Thanks :user:`Fedalto`.
+- Fix typo in exception message (:issue:`659`). Thanks :user:`wonderbeyond`
+  for reporting and thanks :user:`yoichi` for the PR.
+
+3.0.0b3 (2017-08-20)
+++++++++++++++++++++
+
+Features:
+
+- Add ``valid_data`` attribute to ``ValidationError``.
+- Add ``strict`` parameter to ``Integer`` (:issue:`667`). Thanks
+  :user:`yoichi`.
+
+Deprecations/Removals:
+
+- Deprecate ``json_module`` option in favor of ``render_module`` (:issue:`364`, :issue:`130`). Thanks :user:`justanr` for the suggestion.
+
+Bug fixes:
+
+- Includes bug fixes from releases 2.13.5 and 2.13.6.
+- *Backwards-incompatible* : ``Number`` fields don't accept booleans as valid input (:issue:`623`). Thanks :user:`tuukkamustonen` for the suggestion and thanks :user:`rowillia` for the PR.
+
+Support:
+
+- Add benchmark script. Thanks :user:`rowillia`.
+
+3.0.0b2 (2017-03-19)
+++++++++++++++++++++
+
+Features:
+
+- Add ``truthy`` and ``falsy`` params to ``fields.Boolean`` (:issue:`580`). Thanks :user:`zwack` for the PR. Note: This is potentially a breaking change if your code passes the `default` parameter positionally. Pass `default` as a keyword argument instead, e.g. ``fields.Boolean(default=True)``.
+
+Other changes:
+
+- *Backwards-incompatible*: ``validate.ContainsOnly`` allows empty and duplicate values (:issue:`516`, :issue:`603`). Thanks :user:`maximkulkin` for the suggestion and thanks :user:`lafrech` for the PR.
+
+Bug fixes:
+
+- Includes bug fixes from release 2.13.4.
+
+3.0.0b1 (2017-03-10)
+++++++++++++++++++++
+
+Features:
+
+- ``fields.Nested`` respects ``only='field'`` when deserializing (:issue:`307`). Thanks :user:`erlingbo` for the suggestion and the PR.
+- ``fields.Boolean`` parses ``"on"``/``"off"`` (:issue:`580`). Thanks :user:`marcellarius` for the suggestion.
+
+
+Other changes:
+
+- Includes changes from release 2.13.2.
+- *Backwards-incompatible*: ``skip_on_field_errors`` defaults to ``True`` for ``validates_schema`` (:issue:`352`).
+
+3.0.0a1 (2017-02-26)
+++++++++++++++++++++
+
+Features:
+
+- ``dump_only`` and ``load_only`` for ``Function`` and ``Method`` are set based on ``serialize`` and ``deserialize`` arguments (:issue:`328`).
+
+Other changes:
+
+- *Backwards-incompatible*: ``fields.Method`` and ``fields.Function`` no longer swallow ``AttributeErrors`` (:issue:`395`). Thanks :user:`bereal` for the suggestion.
+- *Backwards-incompatible*: ``validators.Length`` is no longer a subclass of ``validators.Range`` (:issue:`458`). Thanks :user:`deckar01` for the catch and patch.
+- *Backwards-incompatible*: ``utils.get_func_args`` no longer returns bound arguments. This is consistent with the behavior of ``inspect.signature``. This change prevents a DeprecationWarning on Python 3.5 (:issue:`415`, :issue:`479`). Thanks :user:`deckar01` for the PR.
+- *Backwards-incompatible*: Change the signature of ``utils.get_value`` and ``Schema.get_attribute`` for consistency with Python builtins (e.g. ``getattr``) (:issue:`341`). Thanks :user:`stas` for reporting and thanks :user:`deckar01` for the PR.
+- *Backwards-incompatible*: Don't unconditionally call callable attributes (:issue:`430`, reverts :issue:`242`). Thanks :user:`mirko` for the suggestion.
+- Drop support for Python 2.6 and 3.3.
+
+Deprecation/Removals:
+
+- Remove ``__error_handler__``, ``__accessor__``, ``@Schema.error_handler``, and ``@Schema.accessor``. Override ``Schema.handle_error`` and ``Schema.get_attribute`` instead.
+- Remove ``func`` parameter of ``fields.Function``. Remove ``method_name`` parameter of ``fields.Method`` (issue:`325`). Use the ``serialize`` parameter instead.
+- Remove ``extra`` parameter from ``Schema``. Use a ``@post_dump`` method to add additional data.
+
+2.19.2 (2019-03-30)
++++++++++++++++++++
+
+Bug fixes:
+
+- Handle ``OverflowError`` when (de)serializing large integers with
+  ``fields.Float`` (:pr:`1177`). Thanks :user:`brycedrennan` for the PR.
+
+2.19.1 (2019-03-16)
++++++++++++++++++++
+
+Bug fixes:
+
+- Fix bug where ``Nested(many=True)`` would skip first element when
+  serializing a generator (:issue:`1163`). Thanks :user:`khvn26` for the
+  catch and patch.
+
+2.19.0 (2019-03-07)
++++++++++++++++++++
+
+Deprecation/Removal:
+
+- A `RemovedInMarshmallow3` warning is raised when using
+  `fields.FormattedString`. Use `fields.Method` or `fields.Function`
+  instead (:issue:`1141`).
+
+2.18.1 (2019-02-15)
++++++++++++++++++++
+
+Bug fixes:
+
+- A ``ChangedInMarshmallow3Warning`` is no longer raised when
+  ``strict=False`` (:issue:`1108`). Thanks :user:`Aegdesil` for
+  reporting.
+
+2.18.0 (2019-01-13)
++++++++++++++++++++
+
+Features:
+
+- Add warnings for functions in ``marshmallow.utils`` that are removed in
+  marshmallow 3.
+
+Bug fixes:
+
+- Copying ``missing`` with ``copy.copy`` or ``copy.deepcopy`` will not
+  duplicate it (:pr:`1099`).
+
+2.17.0 (2018-12-26)
++++++++++++++++++++
+
+Features:
+
+- Add ``marshmallow.__version_info__`` (:pr:`1074`).
+- Add warnings for API that is deprecated or changed to help users
+  prepare for marshmallow 3 (:pr:`1075`).
+
+2.16.3 (2018-11-01)
++++++++++++++++++++
+
+Bug fixes:
+
+- Prevent memory leak when dynamically creating classes with ``type()``
+  (:issue:`732`). Thanks :user:`asmodehn` for writing the tests to
+  reproduce this issue.
+
+2.16.2 (2018-10-30)
++++++++++++++++++++
+
+Bug fixes:
+
+- Prevent warning about importing from ``collections`` on Python 3.7
+  (:issue:`1027`). Thanks :user:`nkonin` for reporting and
+  :user:`jmargeta` for the PR.
+
+2.16.1 (2018-10-17)
++++++++++++++++++++
+
+Bug fixes:
+
+- Remove spurious warning about implicit collection handling
+  (:issue:`998`). Thanks :user:`lalvarezguillen` for reporting.
+
+2.16.0 (2018-10-10)
++++++++++++++++++++
+
+Bug fixes:
+
+- Allow username without password in basic auth part of the url in
+  ``fields.Url`` (:pr:`982`). Thanks user:`alefnula` for the PR.
+
+Other changes:
+
+- Drop support for Python 3.3 (:pr:`987`).
+
+2.15.6 (2018-09-20)
++++++++++++++++++++
+
+Bug fixes:
+
+- Prevent ``TypeError`` when a non-collection is passed to a ``Schema`` with ``many=True``.
+  Instead, raise ``ValidationError`` with ``{'_schema': ['Invalid input type.']}`` (:issue:`906`).
+- Fix ``root`` attribute for nested container fields on list
+  on inheriting schemas (:issue:`956`). Thanks :user:`bmcbu`
+  for reporting.
+
+These fixes were backported from 3.0.0b15 and 3.0.0b16.
+
+
+2.15.5 (2018-09-15)
++++++++++++++++++++
+
+Bug fixes:
+
+- Handle empty SQLAlchemy lazy lists gracefully when dumping (:issue:`948`).
+  Thanks :user:`vke-code` for the catch and :user:`YuriHeupa` for the patch.
+
+2.15.4 (2018-08-04)
++++++++++++++++++++
+
+Bug fixes:
+
+- Respect ``load_from`` when reporting errors for ``@validates('field_name')``
+  (:issue:`748`). Thanks :user:`m-novikov` for the catch and patch.
+
+2.15.3 (2018-05-20)
++++++++++++++++++++
+
+Bug fixes:
+
+- Fix passing ``only`` as a string to ``nested`` when the passed field
+  defines ``dump_to`` (:issue:`800`, :issue:`822`). Thanks
+  :user:`deckar01` for the catch and patch.
+
+2.15.2 (2018-05-10)
++++++++++++++++++++
+
+Bug fixes:
+
+- Fix a race condition in validation when concurrent threads use the
+  same ``Schema`` instance (:issue:`783`). Thanks :user:`yupeng0921` and
+  :user:`lafrech` for the fix.
+- Fix serialization behavior of
+  ``fields.List(fields.Integer(as_string=True))`` (:issue:`788`). Thanks
+  :user:`cactus` for reporting and :user:`lafrech` for the fix.
+- Fix behavior of ``exclude`` parameter when passed from parent to
+  nested schemas (:issue:`728`). Thanks :user:`timc13` for reporting and
+  :user:`deckar01` for the fix.
+
+2.15.1 (2018-04-25)
++++++++++++++++++++
+
+Bug fixes:
+
+- :cve:`CVE-2018-17175`: Fix behavior when an empty list is passed as the ``only`` argument
+  (:issue:`772`). Thanks :user:`deckar01` for reporting and thanks
+  :user:`lafrech` for the fix.
+
+2.15.0 (2017-12-02)
++++++++++++++++++++
+
+Bug fixes:
+
+- Handle ``UnicodeDecodeError`` when deserializing ``bytes`` with a
+  ``String`` field (:issue:`650`). Thanks :user:`dan-blanchard` for the
+  suggestion and thanks :user:`4lissonsilveira` for the PR.
+
+2.14.0 (2017-10-23)
++++++++++++++++++++
+
+Features:
+
+- Add ``require_tld`` parameter to ``validate.URL`` (:issue:`664`).
+  Thanks :user:`sduthil` for the suggestion and the PR.
+
+2.13.6 (2017-08-16)
++++++++++++++++++++
+
+Bug fixes:
+
+- Fix serialization of types that implement `__getitem__`
+  (:issue:`669`). Thanks :user:`MichalKononenko`.
+
+2.13.5 (2017-04-12)
++++++++++++++++++++
+
+Bug fixes:
+
+- Fix validation of iso8601-formatted dates (:issue:`556`). Thanks :user:`lafrech` for reporting.
+
+2.13.4 (2017-03-19)
++++++++++++++++++++
+
+Bug fixes:
+
+- Fix symmetry of serialization and deserialization behavior when passing a dot-delimited path to the ``attribute`` parameter of fields (:issue:`450`). Thanks :user:`itajaja` for reporting.
+
+2.13.3 (2017-03-11)
++++++++++++++++++++
+
+Bug fixes:
+
+- Restore backwards-compatibility of ``SchemaOpts`` constructor (:issue:`597`). Thanks :user:`Wesmania` for reporting and thanks :user:`frol` for the fix.
+
+2.13.2 (2017-03-10)
++++++++++++++++++++
+
+Bug fixes:
+
+- Fix inheritance of ``ordered`` option when ``Schema`` subclasses define ``class Meta`` (:issue:`593`). Thanks :user:`frol`.
+
+Support:
+
+- Update contributing docs.
+
+2.13.1 (2017-03-04)
++++++++++++++++++++
+
+Bug fixes:
+
+- Fix sorting on Schema subclasses when ``ordered=True`` (:issue:`592`). Thanks :user:`frol`.
+
+2.13.0 (2017-02-18)
++++++++++++++++++++
+
+Features:
+
+- Minor optimizations (:issue:`577`). Thanks :user:`rowillia` for the PR.
+
 2.12.2 (2017-01-30)
 +++++++++++++++++++
 

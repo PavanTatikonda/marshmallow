@@ -1,9 +1,24 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import re
 from setuptools import setup, find_packages
 
-EXTRA_REQUIREMENTS = ['python-dateutil', 'simplejson']
+EXTRAS_REQUIRE = {
+    'reco': ['python-dateutil>=2.7.0', 'simplejson'],
+    'tests': [
+        'pytest',
+        'pytz',
+    ],
+    'lint': [
+        'flake8==3.7.7',
+        'pre-commit==1.17.0',
+    ],
+}
+EXTRAS_REQUIRE['dev'] = (
+    EXTRAS_REQUIRE['reco'] +
+    EXTRAS_REQUIRE['tests'] +
+    EXTRAS_REQUIRE['lint'] +
+    ['tox']
+)
 
 def find_version(fname):
     """Attempts to find the version number in the file names fname.
@@ -21,45 +36,49 @@ def find_version(fname):
         raise RuntimeError('Cannot find version information')
     return version
 
-__version__ = find_version("marshmallow/__init__.py")
-
 
 def read(fname):
     with open(fname) as fp:
         content = fp.read()
     return content
 
+
 setup(
     name='marshmallow',
-    version=__version__,
-    description=('A lightweight library for converting complex '
-                'datatypes to and from native Python datatypes.'),
+    version=find_version('src/marshmallow/__init__.py'),
+    description=(
+        'A lightweight library for converting complex '
+        'datatypes to and from native Python datatypes.'
+    ),
     long_description=read('README.rst'),
     author='Steven Loria',
     author_email='sloria1@gmail.com',
     url='https://github.com/marshmallow-code/marshmallow',
-    packages=find_packages(exclude=('test*', 'examples')),
-    package_dir={'marshmallow': 'marshmallow'},
+    packages=find_packages('src', exclude=('test*', 'examples')),
+    package_dir={'': 'src'},
     include_package_data=True,
-    extras_require={'reco': EXTRA_REQUIREMENTS},
+    extras_require=EXTRAS_REQUIRE,
     license='MIT',
     zip_safe=False,
-    keywords=('serialization', 'rest', 'json', 'api', 'marshal',
-        'marshalling', 'deserialization', 'validation', 'schema'),
+    keywords=[
+        'serialization', 'rest', 'json', 'api', 'marshal',
+        'marshalling', 'deserialization', 'validation', 'schema',
+    ],
+    python_requires='>=3.5',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: Implementation :: CPython',
-        'Programming Language :: Python :: Implementation :: PyPy',
+        'Programming Language :: Python :: 3.7',
     ],
-    test_suite='tests'
+    test_suite='tests',
+    project_urls={
+        'Changelog': 'https://marshmallow.readthedocs.io/en/latest/changelog.html',
+        'Issues': 'https://github.com/marshmallow-code/marshmallow/issues',
+        'Funding': 'https://opencollective.com/marshmallow',
+        'Tidelift': 'https://tidelift.com/subscription/pkg/pypi-marshmallow?utm_source=pypi-marshmallow&utm_medium=pypi',  # noqa
+    },
 )

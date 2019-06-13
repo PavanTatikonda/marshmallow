@@ -1,11 +1,859 @@
-
-.. _upgrading:
-
-
 Upgrading to Newer Releases
 ===========================
 
 This section documents migration paths to new releases.
+
+.. _upgrading_3_0:
+
+Upgrading to 3.0
+++++++++++++++++
+
+Python compatibility
+********************
+
+The marshmallow 3.x series supports Python >= 3.5.
+
+Python 2.6, 2.7, 3.3, and 3.4 are no longer supported.
+
+
+Schemas are always strict
+*************************
+
+Two major changes were made to (de)serialization behavior:
+
+- The ``strict`` parameter was removed. Schemas are always strict.
+- `Schema().load <marshmallow.Schema.load>` and `Schema().dump <marshmallow.Schema.dump>` don't return a ``(data, errors)`` tuple any more. Only ``data`` is returned.
+
+If invalid data are passed, a :exc:`ValidationError <marshmallow.exceptions.ValidationError>` is raised.
+The dictionary of validation errors is accessible from the
+`ValidationError.messages <marshmallow.exceptions.ValidationError.messages>` attribute,
+along with the valid data from the `ValidationError.valid_data
+<marshmallow.exceptions.ValidationError.valid_data>` attribute.
+
+.. code-block:: python
+
+    from marshmallow import ValidationError
+
+    # 2.x
+    schema = UserSchema()
+    data, errors = schema.load({'name': 'Monty', 'email': 'monty@python.org'})
+    # OR
+    schema = UserSchema(strict=True)
+    try:
+        data, _ = schema.load({'name': 'Monty', 'email': 'monty@python.org'})
+    except ValidationError as err:
+        errors = err.messages
+        valid_data = err.valid_data
+
+    # 3.x
+    schema = UserSchema()
+    # There is only one right way
+    try:
+        data = schema.load({'name': 'Monty', 'email': 'monty@python.org'})
+    except ValidationError as err:
+        errors = err.messages
+        valid_data = err.valid_data
+
+:meth:`Schema().validate <marshmallow.Schema.validate>` always returns a dictionary of validation errors (same as 2.x with ``strict=False``).
+
+.. code-block:: python
+
+    schema.validate({'email': 'invalid'})
+    # {'email': ['Not a valid email address.']}
+
+Setting the ``strict`` option on ``class Meta`` has no effect on `Schema` behavior.
+Passing ``strict=True`` or ``strict=False`` to the `Schema` constructor
+will raise a :exc:`TypeError`.
+
+
+.. code-block:: python
+
+    # 3.x
+    UserSchema(strict=True)
+    # TypeError: __init__() got an unexpected keyword argument 'strict'
+
+
+.. seealso::
+
+    See GitHub issues :issue:`377` and :issue:`598` for the discussions on
+    this change.
+
+
+Decorated methods receive ``many`` and ``partial``
+**************************************************
+
+Methods decorated with
+`pre_load <marshmallow.decorators.pre_load>`, `post_load <marshmallow.decorators.post_load>`,
+`pre_dump <marshmallow.decorators.pre_dump>`, `post_dump <marshmallow.decorators.post_dump>`,
+and `validates_schema <marshmallow.decorators.validates_schema>` receive
+``many`` as a keyword argument. In addition, `pre_load <marshmallow.decorators.pre_load>`, `post_load <marshmallow.decorators.post_load>`,
+and `validates_schema <marshmallow.decorators.validates_schema>` receive
+``partial``. To account for these additional arguments, add ``**kwargs`` to your methods.
+
+.. code-block:: python
+
+    # 2.x
+    class UserSchema(Schema):
+        name = fields.Str()
+        slug = fields.Str()
+
+        @pre_load
+        def slugify_name(self, in_data):
+            in_data['slug'] = in_data['slug'].lower().strip().replace(' ', '-')
+            return in_data
+
+    # 3.x
+    class UserSchema(Schema):
+        name = fields.Str()
+        slug = fields.Str()
+
+        @pre_load
+        def slugify_name(self, in_data, **kwargs):
+            in_data['slug'] = in_data['slug'].lower().strip().replace(' ', '-')
+            return in_data
+
+Deserializing invalid types raises a ``ValidationError``
+********************************************************
+
+Numbers, booleans, strings, and ``None`` are
+considered invalid input to `Schema.load
+<marshmallow.Schema.load>`.
+
+.. code-block:: python
+
+    # 2.x
+    # Passes silently
+    schema.load(None)
+    schema.load(False)
+    schema.load('pass')
+
+    # 3.x
+    # marshmallow.exceptions.ValidationError: {'_schema': ['Invalid input type.']}
+    schema.load(None)
+    schema.load(False)
+    schema.load('nope')
+
+
+When ``many=True``, non-collection types are also considered invalid.
+
+
+.. code-block:: python
+
+    # 2.x
+    # Passes silently
+    schema.load(None, many=True)
+    schema.load({}, many=True)
+    schema.load('pass', many=True)
+
+    # 3.x
+    # marshmallow.exceptions.ValidationError: {'_schema': ['Invalid input type.']}
+    schema.load(None, many=True)
+    schema.load({}, many=True)
+    schema.load('invalid', many=True)
+
+
+``ValidationError.fields`` is removed
+*************************************
+
+:exc:`ValidationError <marshmallow.exceptions.ValidationError>` no
+longer stores a list of `Field <marshmallow.fields.Field>` instances
+associated with the validation errors.
+
+If you need field instances associated with an error, you can access
+them from ``schema.fields``.
+
+.. code-block:: python
+
+
+    from marshmallow import Schema, fields, ValidationError
+
+    class MySchema(Schema):
+        foo = fields.Int()
+
+
+    schema = MySchema()
+
+    try:
+        schema.load({'foo': 'invalid'})
+    except ValidationError as error:
+        field = schema.fields['foo']
+        # ...
+
+
+``ValidationError`` expects a single field name
+***********************************************
+
+:exc:`ValidationError <marshmallow.exceptions.ValidationError>` no
+longer accepts a list of field names. It expects a single field name. If none
+is passed, the error refers to the schema.
+
+To return an error for several fields at once, a `dict` must be used.
+
+.. code-block:: python
+
+    from marshmallow import Schema, fields, validates_schema, ValidationError
+
+    class NumberSchema(Schema):
+        field_a = fields.Integer()
+        field_b = fields.Integer()
+
+        # 2.x
+        @validates_schema
+        def validate_numbers(self, data):
+            if data['field_b'] >= data['field_a']:
+                raise ValidationError(
+                    'field_a must be greater than field_b',
+                    ['field_a', 'field_b']
+                )
+
+        # 3.x
+        @validates_schema
+        def validate_numbers(self, data):
+            if data['field_b'] >= data['field_a']:
+                raise ValidationError({
+                    'field_a': ['field_a must be greater than field_b']
+                    'field_b': ['field_a must be greater than field_b']
+                })
+
+``ValidationError`` error messages are deep-merged
+**************************************************
+
+When multiple :exc:`ValidationError <marshmallow.exceptions.ValidationError>`
+are raised, the error structures are merged in the final :exc:`ValidationError`
+raised at the end of the process.
+
+When reporting error messages as `dict`, the keys should refer to subitems
+of the item the message refers to, and the values should be error messages.
+
+See the "Schema-level Validation" section of :doc:`Extending Schemas <extending>`
+page for an example.
+
+Schemas raise ``ValidationError`` when deserializing data with unknown keys
+***************************************************************************
+
+Marshmallow 3.x schemas can deal with unknown keys in three different ways,
+configurable with the ``unknown`` option:
+
+- ``EXCLUDE``: drop those keys (same as marshmallow 2)
+- ``INCLUDE``: pass those keys/values as is, with no validation performed
+- ``RAISE`` (default): raise a ``ValidationError``
+
+The ``unknown`` option can be passed as a Meta option, on Schema instantiation,
+or at load time.
+
+.. code-block:: python
+
+    from marshmallow import Schema, fields, EXCLUDE, INCLUDE, RAISE
+
+    class MySchema(Schema):
+        foo = fields.Int()
+
+        class Meta:
+            # Pass EXCLUDE as Meta option to keep marshmallow 2 behavior
+            unknown = EXCLUDE
+
+    MySchema().load({'foo': 42, 'bar': 'whatever'})  # => ['foo': 42]
+
+    # Value passed on instantiation overrides Meta option
+    schema = MySchema(unknown=INCLUDE)
+    schema.load({'foo': 42, 'bar': 'whatever'})  # => ['foo': 42, 'bar': 'whatever']
+
+    # Value passed on load overrides instance attribute
+    schema.load({'foo': 42, 'bar': 'whatever'}, unknown=RAISE)  # => ValidationError
+
+Overriding ``get_attribute``
+****************************
+
+If your `Schema <marshmallow.Schema>` overrides `get_attribute <marshmallow.Schema.get_attribute>`, you will need to update the method's signature. The positions of the ``attr`` and ``obj`` arguments were switched for consistency with Python builtins, e.g. `getattr`.
+
+.. code-block:: python
+
+    from marshmallow import Schema
+
+    # 2.x
+    class MySchema(Schema):
+        def get_attribute(self, attr, obj, default):
+            # ...
+
+    # 3.x
+    class MySchema(Schema):
+        def get_attribute(self, obj, attr, default):
+            # ...
+
+``pass_original=True`` passes individual items when ``many=True``
+*****************************************************************
+
+When ``pass_original=True`` is passed to
+`validates_schema <marshmallow.decorators.validates_schema>`,
+`post_load <marshmallow.decorators.post_load>`, or
+`post_dump <marshmallow.decorators.post_dump>`, the `original_data`
+argument will be a single item corresponding to the (de)serialized
+datum.
+
+.. code-block:: python
+
+    from marshmallow import Schema, fields, post_load, EXCLUDE
+
+
+    class ShoeSchema(Schema):
+        size = fields.Int()
+
+        class Meta:
+            unknown = EXCLUDE
+
+        @post_load(pass_original=True)
+        def post_load(self, data, original_data, **kwargs):
+            # original_data has 'width' but
+            # data does not because it's not
+            # in the schema
+            assert 'width' in original_data
+            assert 'width' not in data
+            return data
+
+
+    input_data = [
+        {'size': 10, 'width': 'M'},
+        {'size': 6, 'width': 'W'},
+    ]
+
+    print(ShoeSchema(many=True).load(input_data))
+    # [{'size': 10}, {'size': 6}]
+
+
+``utils.get_func_args`` no longer returns bound arguments
+*********************************************************
+
+The `utils.get_func_args <marshmallow.utils.get_func_args>` function will no longer return bound arguments, e.g. `'self'`.
+
+.. code-block:: python
+
+    from marshmallow.utils import get_func_args
+
+    class MyCallable:
+
+        def __call__(self, foo, bar):
+            return 42
+
+    callable_obj = MyCallable()
+
+    # 2.x
+    get_func_args(callable_obj)  # => ['self', 'foo', 'bar']
+
+    # 3.x
+    get_func_args(callable_obj)  # => ['foo', 'bar']
+
+
+Handling ``AttributeError`` in ``Method`` and ``Function`` fields
+*****************************************************************
+
+The `Method <marshmallow.fields.Method>` and `Function <marshmallow.fields.Function>` fields no longer swallow ``AttributeErrors``. Therefore, your methods and functions are responsible for handling inputs such as `None`.
+
+.. code-block:: python
+
+    from marshmallow import Schema, fields, missing
+
+    # 2.x
+    class ShapeSchema(Schema):
+        area = fields.Method('get_area')
+
+        def get_area(self, obj):
+            return obj.height * obj.length
+
+    schema = ShapeSchema()
+    # In 2.x, the following would pass without errors
+    # In 3.x, and AttributeError would be raised
+    result = schema.dump(None)
+    result  # => {}
+
+
+    # 3.x
+    class ShapeSchema(Schema):
+        area = fields.Method('get_area')
+
+        def get_area(self, obj):
+            if obj is None:
+                # 'area' will not appear in serialized output
+                return missing
+            return obj.height * obj.length
+
+    schema = ShapeSchema()
+    result = schema.dump(None)
+    result  # => {}
+
+Adding additional data to serialized output
+*******************************************
+
+Use a `post_dump <marshmallow.decorators.post_dump>` to add additional data on serialization. The ``extra`` argument on `Schema <marshmallow.Schema>` was removed.
+
+
+.. code-block:: python
+
+    from marshmallow import Schema, fields, post_dump
+
+    # 2.x
+    class MySchema(Schema):
+        x = fields.Int()
+        y = fields.Int()
+
+    schema = MySchema(extra={'z': 123})
+    schema.dump({'x': 1, 'y': 2})
+    # => {'z': 123, 'y': 2, 'x': 1}
+
+    # 3.x
+    class MySchema(Schema):
+        x = fields.Int()
+        y = fields.Int()
+
+        @post_dump
+        def add_z(self, output):
+            output['z'] = 123
+            return output
+
+    schema = MySchema()
+    schema.dump({'x': 1, 'y': 2})
+    # => {'z': 123, 'y': 2, 'x': 1}
+
+
+Schema-level validators are skipped when field validation fails
+***************************************************************
+
+By default, schema validator methods decorated by `validates_schema <marshmallow.decorators.validates_schema>` won't execute if any of the field validators fails (including ``required=True`` validation).
+
+.. code-block:: python
+
+    from marshmallow import Schema, fields, validates_schema, ValidationError
+
+    class MySchema(Schema):
+        x = fields.Int(required=True)
+        y = fields.Int(required=True)
+
+        @validates_schema
+        def validate_schema(self, data):
+            if data['x'] <= data['y']:
+                raise ValidationError('x must be greater than y')
+
+
+    schema = MySchema()
+
+    # 2.x
+    # A KeyError is raised in validate_schema
+    schema.load({'x': 2})
+
+    # 3.x
+    # marshmallow.exceptions.ValidationError: {'y': ['Missing data for required field.']}
+    # validate_schema is not run
+    schema.load({'x': 2})
+
+If you want a schema validator to run even if a field validator fails, pass ``skip_on_field_errors=False``. Make sure your code handles cases where fields are missing from the deserialized data (due to validation errors).
+
+
+.. code-block:: python
+
+    from marshmallow import Schema, fields, validates_schema, ValidationError
+
+    class MySchema(Schema):
+        x = fields.Int(required=True)
+        y = fields.Int(required=True)
+
+        @validates_schema(skip_on_field_errors=False)
+        def validate_schema(self, data):
+            if 'x' in data and 'y' in data:
+                if data['x'] <= data['y']:
+                    raise ValidationError('x must be greater than y')
+
+
+    schema = MySchema()
+    schema.load({'x': 2})
+    # marshmallow.exceptions.ValidationError: {'y': ['Missing data for required field.']}
+
+`SchemaOpts` constructor receives ``ordered`` argument
+******************************************************
+
+Subclasses of `SchemaOpts <marshmallow.SchemaOpts>` receive an additional argument, ``ordered``, which is `True` if the `ordered` option is set to `True` on a Schema or one of its parent classes.
+
+.. code-block:: python
+
+    from marshmallow import SchemaOpts
+
+    # 2.x
+    class CustomOpts(SchemaOpts):
+
+        def __init__(self, meta):
+            super().__init__(meta)
+            self.custom_option = getattr(meta, 'meta', False)
+
+    # 3.x
+    class CustomOpts(SchemaOpts):
+
+        def __init__(self, meta, ordered=False):
+            super().__init__(meta, ordered)
+            self.custom_option = getattr(meta, 'meta', False)
+
+`ContainsOnly` accepts empty and duplicate values
+*************************************************
+
+`validate.ContainsOnly <marshmallow.validate.ContainsOnly>` now accepts duplicate values in the input value.
+
+
+.. code-block:: python
+
+    from marshmallow import validate
+
+    validator = validate.ContainsOnly(['red', 'blue'])
+
+    # in 2.x the following raises a ValidationError
+    # in 3.x, no error is raised
+    validator(['red', 'red', 'blue'])
+
+
+If you don't want to accept duplicates, use a custom validator, like the following.
+
+.. code-block:: python
+
+    from marshmallow import ValidationError
+    from marshmallow.validate import ContainsOnly
+
+    class ContainsOnlyNoDuplicates(ContainsOnly):
+
+        def __call__(self, value):
+            ret = super(ContainsOnlyNoDuplicates, self).__call__(value)
+            if len(set(value)) != len(value):
+                raise ValidationError('Duplicate values not allowed')
+            return ret
+
+.. note::
+
+    If you need to handle unhashable types, you can use the  `implementation of
+    ContainsOnly from marshmallow 2.x <https://github.com/marshmallow-code/marshmallow/blob/2888e6978bc8c409a5fed35da6ece8bdb23384f2/marshmallow/validate.py#L436-L467>`_.
+
+`validate.ContainsOnly <marshmallow.validate.ContainsOnly>` also accepts empty values as valid input.
+
+.. code-block:: python
+
+    from marshmallow import validate
+
+    validator = validate.ContainsOnly(['red', 'blue'])
+
+    # in 2.x the following raises a ValidationError
+    # in 3.x, no error is raised
+    validator([])
+
+To validate against empty inputs, use `validate.Length(min=1) <marshmallow.validate.Length>`.
+
+
+``json_module`` option is renamed to ``render_module``
+******************************************************
+
+The ``json_module`` class Meta option is deprecated in favor of ``render_module``.
+
+.. code-block:: python
+
+    import ujson
+
+    # 2.x
+    class MySchema(Schema):
+        class Meta:
+            json_module = ujson
+
+    # 3.x
+    class MySchema(Schema):
+        class Meta:
+            render_module = ujson
+
+
+``missing`` and ``default`` ``Field`` parameters are passed in deserialized form
+********************************************************************************
+
+.. code-block:: python
+
+    # 2.x
+    class UserSchema(Schema):
+        id = fields.UUID(missing=lambda: str(uuid.uuid1()))
+        birthdate = fields.DateTime(default=lambda: dt.datetime(2017, 9, 19).isoformat())
+
+    # 3.x
+    class UserSchema(Schema):
+        id = fields.UUID(missing=uuid.uuid1)
+        birthdate = fields.DateTime(default=dt.datetime(2017, 9, 19))
+
+
+Pass ``default`` as a keyword argument
+**************************************
+
+`fields.Boolean <marshmallow.fields.Boolean>` now receives additional ``truthy`` and ``falsy`` parameters. Consequently, the ``default`` parameter should always be passed as a keyword argument.
+
+
+.. code-block:: python
+
+    # 2.x
+    fields.Boolean(True)
+
+    # 3.x
+    fields.Boolean(default=True)
+
+
+``Email`` and ``URL`` fields do not validate on serialization
+*************************************************************
+
+`fields.Email <marshmallow.fields.Email>` and `fields.URL <marshmallow.fields.URL>` only validate input upon
+deserialization. They do not validate on serialization. This makes them
+more consistent with the other fields and improves serialization
+performance.
+
+
+``load_from`` and ``dump_to`` are merged into ``data_key``
+**********************************************************
+
+The same key is used for serialization and deserialization.
+
+.. code-block:: python
+
+    # 2.x
+    class UserSchema(Schema):
+        email = fields.Email(load_from='CamelCasedEmail',
+                             dump_to='CamelCasedEmail')
+
+    # 3.x
+    class UserSchema(Schema):
+        email = fields.Email(data_key='CamelCasedEmail')
+
+It is not possible to specify a different key for serialization and deserialization on the same field.
+This use case is covered by using two different `Schema`.
+
+.. code-block:: python
+
+    from marshmallow import Schema, fields
+
+    # 2.x
+    class UserSchema(Schema):
+        id = fields.Str()
+        email = fields.Email(load_from='CamelCasedEmail',
+                             dump_to='snake_case_email')
+
+    # 3.x
+    class BaseUserSchema(Schema):
+        id = fields.Str()
+
+    class LoadUserSchema(BaseUserSchema):
+        email = fields.Email(data_key='CamelCasedEmail')
+
+    class DumpUserSchema(BaseUserSchema):
+        email = fields.Email(data_key='snake_case_email')
+
+
+Also, when ``data_key`` is specified on a field, only ``data_key`` is checked in the input data. In marshmallow 2.x the field name is checked if ``load_from`` is missing from the input data.
+
+Pre/Post-processors must return modified data
+*********************************************
+
+In marshmallow 2.x, ``None`` returned by a pre or post-processor is interpreted as "the data was mutated". In marshmallow 3.x, the return value is considered as processed data even if it is ``None``.
+
+Processors that mutate the data should be updated to also return it.
+
+
+.. code-block:: python
+
+    # 2.x
+    class UserSchema(Schema):
+        name = fields.Str()
+        slug = fields.Str()
+
+        @pre_load
+        def slugify_name(self, in_data):
+            # In 2.x, implicitly returning None implied that data were mutated
+            in_data['slug'] = in_data['slug'].lower().strip().replace(' ', '-')
+
+    # 3.x
+    class UserSchema(Schema):
+        name = fields.Str()
+        slug = fields.Str()
+
+        @pre_load
+        def slugify_name(self, in_data, **kwargs):
+            # In 3.x, always return the processed data
+            in_data['slug'] = in_data['slug'].lower().strip().replace(' ', '-')
+            return in_data
+
+``Nested`` field no longer supports plucking
+********************************************
+
+In marshmallow 2.x, when a string was passed to a ``Nested`` field's ```only`` parameter, the field would be plucked. In marshmallow 3.x, the ``Pluck`` field must be used instead.
+
+
+.. code-block:: python
+
+    # 2.x
+    class UserSchema(Schema):
+        name = fields.Str()
+        friends = fields.Nested('self', many=True, only='name')
+
+    # 3.x
+    class UserSchema(Schema):
+        name = fields.Str()
+        friends = fields.Pluck('self', 'name', many=True)
+
+
+Accessing attributes on objects within a list
+*********************************************
+
+In order to serialize attributes on inner objects within a list, use the
+``Pluck`` field.
+
+.. code-block:: python
+
+    # 2.x
+    class FactorySchema(Schema):
+        widget_ids = fields.List(fields.Int(attribute='id'))
+
+    # 3.x
+    class FactorySchema(Schema):
+        widget_ids = fields.List(fields.Pluck(WidgetSchema, 'id'))
+
+
+``Float`` field takes a new ``allow_nan`` parameter
+***************************************************
+
+In marshmallow 2.x, ``Float`` field would serialize and deserialize special values such as ``nan``, ``inf`` or ``-inf``. In marshmallow 3, those values trigger a ``ValidationError`` unless ``allow_nan`` is ``True``. ``allow_nan`` defaults to ``False``.
+
+
+.. code-block:: python
+
+    # 2.x
+    class MySchema(Schema):
+        x = fields.Float()
+
+    MySchema().load({'x': 'nan'})
+    # => {{'x': nan}}
+
+    # 3.x
+    class MySchema(Schema):
+        x = fields.Float()
+        y = fields.Float(allow_nan=True)
+
+    MySchema().load({'x': 12, 'y': 'nan'})
+    # => {{'x': 12.0, 'y': nan}}
+
+    MySchema().load({'x': 'nan'})
+    # marshmallow.exceptions.ValidationError: {'x': ['Special numeric values (nan or infinity) are not permitted.']}
+
+``DateTime`` field ``dateformat`` ``Meta`` option is renamed ``datetimeformat``
+*******************************************************************************
+
+The ``Meta`` option ``dateformat`` used to pass format to `DateTime <marshmallow.fields.DateTime>` field is renamed as ``datetimeformat``.
+
+`Date <marshmallow.fields.Date>` field gets a new ``format`` parameter to specify the format to use for serialization. ``dateformat`` ``Meta`` option now applies to `Date <marshmallow.fields.Date>` field.
+
+.. code-block:: python
+
+    # 2.x
+    class MySchema(Schema):
+        x = fields.DateTime()
+
+        class Meta:
+            dateformat = '%Y-%m'
+
+    MySchema().dump({'x': dt.datetime(2017, 9, 19)})
+    # => {{'x': '2017-09'}}
+
+    # 3.x
+    class MySchema(Schema):
+        x = fields.DateTime()
+        y = fields.Date()
+
+        class Meta:
+            datetimeformat = '%Y-%m'
+            dateformat = '%m-%d'
+
+    MySchema().dump({'x': dt.datetime(2017, 9, 19), 'y': dt.date(2017, 9, 19)})
+    # => {{'x': '2017-09', 'y': '09-19'}}
+
+The ``prefix`` ``Schema`` parameter is removed
+**********************************************
+
+The ``prefix`` parameter of ``Schema`` is removed. The same feature can be achieved using a post_dump <marshmallow.decorators.post_dump>` method.
+
+
+.. code-block:: python
+
+    # 2.x
+    class MySchema(Schema):
+        f1 = fields.Field()
+        f2 = fields.Field()
+
+    MySchema(prefix='pre_').dump({'f1': 'one', 'f2': 'two'})
+    # {'pre_f1': 'one', '_pre_f2': 'two'}
+
+    # 3.x
+    class MySchema(Schema):
+        f1 = fields.Field()
+        f2 = fields.Field()
+
+        @post_dump
+        def prefix_usr(self, data):
+            return {'usr_{}'.format(k): v for k, v in iteritems(data)}
+
+    MySchema().dump({'f1': 'one', 'f2': 'two'})
+    # {'pre_f1': 'one', '_pre_f2': 'two'}
+
+
+``fields.FormattedString`` is removed
+*************************************
+
+``fields.FormattedString`` field is removed. Use `fields.Function
+<marshmallow.fields.Function>` or
+`fields.Method <marshmallow.fields.Method>` instead.
+
+.. code-block:: python
+
+    # 2.x
+    class MySchema(Schema):
+        full_name = fields.FormattedString("{first_name} {last_name}")
+
+    # 3.x
+    class MySchema(Schema):
+        full_name = fields.Function(lambda u: f"{u.first_name} {u.last_name}")
+
+
+``attribute`` or ``data_key`` collision triggers an exception
+*************************************************************
+
+When a `Schema <marshmallow.Schema>` is instantiated, a check is performed and a ``ValueError`` is triggered if
+
+- several fields have the same ``attribute`` value (or field name if ``attribute`` is not passed), excluding ``dump_only`` fields, or
+- several fields have the same ``data_key`` value (or field name if ``data_key`` is not passed), excluding ``load_only`` fields
+
+In marshmallow 2, it was possible to have multiple fields with the same ``attribute``. It would work provided the ``Schema`` was only used for dumping. When loading, the behaviour was undefined. In marshmallow 3, all but one of those fields must be marked as ``dump_only``. Likewise for ``data_key`` (formerly ``dump_to``) for fields that are not ``load_only``.
+
+.. code-block:: python
+
+    # 2.x
+    class MySchema(Schema):
+        f1 = fields.Field()
+        f2 = fields.Field(attribute='f1')
+        f3 = fields.Field(attribute='f5')
+        f4 = fields.Field(attribute='f5')
+
+    MySchema()
+    # No error
+
+    # 3.x
+    class MySchema(Schema):
+        f1 = fields.Field()
+        f2 = fields.Field(attribute='f1')
+        f3 = fields.Field(attribute='f5')
+        f4 = fields.Field(attribute='f5')
+
+    MySchema()
+    # ValueError: 'Duplicate attributes: ['f1', 'f5]'
+
+    class MySchema(Schema):
+        f1 = fields.Field()
+        f2 = fields.Field(attribute='f1', dump_only=True)
+        f3 = fields.Field(attribute='f5')
+        f4 = fields.Field(attribute='f5', dump_only=True)
+
+    MySchema()
+    # No error
 
 Upgrading to 2.3
 ++++++++++++++++
@@ -23,7 +871,7 @@ The ``func`` parameter of `fields.Function <marshmallow.fields.Function>` was re
     # NO
     lowername = fields.Function(func=lambda obj: obj.name.lower())
 
-Similiarly, the ``method_name`` of `fields.Method <marshmallow.fields.Method>` was also renamed to ``serialize``.
+Similarly, the ``method_name`` of `fields.Method <marshmallow.fields.Method>` was also renamed to ``serialize``.
 
 .. code-block:: python
 
@@ -160,7 +1008,7 @@ The pre- and post-processing API was significantly improved for better consisten
             data['field_a'] -= 1
             return data
 
-See the :ref:`Extending Schemas <extending>` page for more information on the ``pre_*`` and ``post_*`` decorators.
+See the :doc:`Extending Schemas <extending>` page for more information on the ``pre_*`` and ``post_*`` decorators.
 
 Schema Validators
 *****************
@@ -491,7 +1339,7 @@ The default error messages for many fields and validators have been changed for 
 More
 ****
 
-For a full list of changes in 2.0, see the :ref:`Changelog <changelog>`.
+For a full list of changes in 2.0, see the :doc:`Changelog <changelog>`.
 
 
 Upgrading to 1.2
@@ -620,4 +1468,4 @@ Other notable changes:
 
 .. seealso::
 
-    See the :ref:`Changelog <changelog>` for a  more complete listing of added features, bugfixes and breaking changes.
+    See the :doc:`Changelog <changelog>` for a  more complete listing of added features, bugfixes and breaking changes.
